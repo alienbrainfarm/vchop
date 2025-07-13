@@ -1,12 +1,15 @@
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidget, QListWidgetItem, QAction
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidget, QListWidgetItem, QAction, QMessageBox
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QSize
 import cv2
 from PIL import Image
 import json
 from pathlib import Path
+from scenedetect import VideoManager, SceneManager
+from scenedetect.detectors import ContentDetector
+import shutil
 
 VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov']
 THUMBNAIL_SIZE = (200, 200)
@@ -47,6 +50,11 @@ class VideoBrowser(QMainWindow):
             action = QAction(dir_path, self)
             action.triggered.connect(lambda checked, d=dir_path: self.open_directory(d))
             recent_menu.addAction(action)
+        # Add Actions dropdown
+        actions_menu = menubar.addMenu('Actions')
+        split_action = QAction('Split by Scenes', self)
+        split_action.triggered.connect(self.split_by_scenes)
+        actions_menu.addAction(split_action)
 
     def select_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select Directory')
@@ -101,6 +109,47 @@ class VideoBrowser(QMainWindow):
                 item.setIcon(QIcon(pixmap))
                 item.setSizeHint(QSize(THUMBNAIL_SIZE[0], THUMBNAIL_SIZE[1]))
                 self.list_widget.addItem(item)
+
+    def split_by_scenes(self):
+        selected_items = self.list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, 'No Selection', 'Please select a video to split by scenes.')
+            return
+        filename = selected_items[0].text()
+        dir_path = self.recent_dirs[0] if self.recent_dirs else None
+        if not dir_path:
+            QMessageBox.warning(self, 'No Directory', 'No directory found for splitting.')
+            return
+        filepath = os.path.join(dir_path, filename)
+        # Ask user for output directory
+        output_dir = QFileDialog.getExistingDirectory(self, 'Select Output Directory for Scenes')
+        if not output_dir:
+            QMessageBox.information(self, 'Scene Split', 'No output directory selected.')
+            return
+        output_dir = os.path.join(output_dir, f'{filename}_scenes')
+        os.makedirs(output_dir, exist_ok=True)
+        try:
+            from scenedetect import VideoManager, SceneManager
+            from scenedetect.detectors import ContentDetector
+            video_manager = VideoManager([filepath])
+            scene_manager = SceneManager()
+            scene_manager.add_detector(ContentDetector())
+            video_manager.start()
+            scene_manager.detect_scenes(frame_source=video_manager)
+            scene_list = scene_manager.get_scene_list()
+            if not scene_list:
+                QMessageBox.information(self, 'Scene Split', 'No scenes detected.')
+                return
+            # Split video by scenes
+            for i, (start, end) in enumerate(scene_list):
+                out_path = os.path.join(output_dir, f'scene_{i+1}.mp4')
+                start_time = start.get_seconds()
+                duration = end.get_seconds() - start.get_seconds()
+                cmd = f'ffmpeg -y -i "{filepath}" -ss {start_time} -t {duration} -c copy "{out_path}"'
+                os.system(cmd)
+            QMessageBox.information(self, 'Scene Split', f'Split into {len(scene_list)} scenes. Output: {output_dir}')
+        except Exception as e:
+            QMessageBox.critical(self, 'Scene Split Error', str(e))
 
 if __name__ == '__main__':
     start_dir = sys.argv[1] if len(sys.argv) > 1 else None
