@@ -1,8 +1,11 @@
+
 import unittest
 import os
-from src.main import VideoBrowser, VIDEO_EXTENSIONS
-from PyQt5.QtWidgets import QApplication
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from video_browser import VideoBrowser
+from video_utils import VIDEO_EXTENSIONS
+from PyQt5.QtWidgets import QApplication
 
 class TestVideoBrowser(unittest.TestCase):
     @classmethod
