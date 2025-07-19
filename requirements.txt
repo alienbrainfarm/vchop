@@ -1,2 +1,5 @@
 PyQt5
-moviepy
+opencv-python
+Pillow
+scenedetect
+tqdm
