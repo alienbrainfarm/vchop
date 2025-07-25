@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import cv2
 from PIL import Image
+import subprocess
 
 VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.flv']
 THUMBNAIL_SIZE = (200, 200)
@@ -44,3 +45,45 @@ def update_recent_dirs(dir_path, recent_dirs):
     with open(RECENT_DIRS_PATH, 'w') as f:
         json.dump(recent_dirs, f)
     return recent_dirs
+
+def convert_flv_to_mp4(flv_path, mp4_path=None):
+    """Convert FLV file to MP4 using FFmpeg.
+    
+    Args:
+        flv_path: Path to the input FLV file
+        mp4_path: Path to the output MP4 file (optional, defaults to same name with .mp4 extension)
+    
+    Returns:
+        str: Path to the converted MP4 file on success, None on failure
+    """
+    if not flv_path.lower().endswith('.flv'):
+        return None
+        
+    if not os.path.exists(flv_path):
+        return None
+        
+    if mp4_path is None:
+        mp4_path = flv_path.rsplit('.', 1)[0] + '.mp4'
+    
+    try:
+        # Use FFmpeg to convert FLV to MP4
+        cmd = [
+            'ffmpeg', '-y',  # -y to overwrite output file
+            '-i', flv_path,  # input file
+            '-c:v', 'libx264',  # video codec
+            '-c:a', 'aac',  # audio codec
+            '-preset', 'fast',  # encoding preset for speed
+            mp4_path  # output file
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0 and os.path.exists(mp4_path):
+            return mp4_path
+        else:
+            print(f"FFmpeg conversion failed: {result.stderr}")
+            return None
+            
+    except Exception as e:
+        print(f"Error converting FLV to MP4: {e}")
+        return None

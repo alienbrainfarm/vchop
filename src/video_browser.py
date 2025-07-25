@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QMainWindow, QListWidget, QListWidgetItem, QAction, 
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QSize, Qt
 import os
-from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, is_video_file, create_thumbnail
+from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4
 from video_editor import VideoEditorWindow
 
 class VideoBrowser(QMainWindow):
@@ -164,6 +164,9 @@ class VideoBrowser(QMainWindow):
         split_action = QAction('Split by Scenes', self)
         split_action.triggered.connect(self.split_by_scenes)
         actions_menu.addAction(split_action)
+        convert_action = QAction('Convert FLV to MP4', self)
+        convert_action.triggered.connect(self.convert_flv_to_mp4)
+        actions_menu.addAction(convert_action)
 
     def open_scene_manager_from_dir(self):
         # Default to subdirectory of current directory if possible
@@ -231,3 +234,48 @@ class VideoBrowser(QMainWindow):
         video_path = os.path.join(dir_path, filename)
         self.editor = VideoEditorWindow(video_path, self)
         self.editor.show()
+
+    def convert_flv_to_mp4(self):
+        """Convert selected FLV files to MP4 format."""
+        selected_items = self.list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, 'No Selection', 'Please select FLV files to convert to MP4.')
+            return
+        
+        dir_path = self.recent_dirs[0] if self.recent_dirs else None
+        if not dir_path:
+            QMessageBox.warning(self, 'No Directory', 'No directory found for conversion.')
+            return
+        
+        flv_files = []
+        for item in selected_items:
+            filename = item.text()
+            if filename.lower().endswith('.flv'):
+                flv_files.append(os.path.join(dir_path, filename))
+        
+        if not flv_files:
+            QMessageBox.warning(self, 'No FLV Files', 'No FLV files selected. Please select FLV files to convert.')
+            return
+        
+        converted_count = 0
+        for flv_path in flv_files:
+            try:
+                mp4_path = convert_flv_to_mp4(flv_path)
+                if mp4_path:
+                    converted_count += 1
+                    # Create thumbnail for the new MP4 file
+                    thumb_dir = os.path.join(dir_path, THUMBNAIL_DIR)
+                    thumb_path = os.path.join(thumb_dir, f'{os.path.basename(mp4_path)}.png')
+                    create_thumbnail(mp4_path, thumb_path)
+                else:
+                    print(f"Failed to convert {flv_path}")
+            except Exception as e:
+                print(f"Error converting {flv_path}: {e}")
+        
+        if converted_count > 0:
+            QMessageBox.information(self, 'Conversion Complete', 
+                                  f'Successfully converted {converted_count} FLV file(s) to MP4.')
+            # Refresh the directory view to show new MP4 files
+            self.open_directory(dir_path)
+        else:
+            QMessageBox.warning(self, 'Conversion Failed', 'Failed to convert any FLV files.')

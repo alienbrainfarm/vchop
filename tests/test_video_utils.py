@@ -1,6 +1,6 @@
 import unittest
 import os
-from src.video_utils import is_video_file, create_thumbnail
+from src.video_utils import is_video_file, create_thumbnail, convert_flv_to_mp4
 import tempfile
 
 class TestVideoUtils(unittest.TestCase):
@@ -26,6 +26,26 @@ class TestVideoUtils(unittest.TestCase):
         self.assertTrue(os.path.exists(thumb_path))
         os.remove(video_path)
         os.remove(thumb_path)
+
+    def test_convert_flv_to_mp4(self):
+        # Test with the sample FLV file we created
+        flv_path = '/tmp/vchop_test/test.flv'
+        if os.path.exists(flv_path):
+            mp4_path = convert_flv_to_mp4(flv_path)
+            self.assertIsNotNone(mp4_path)
+            self.assertTrue(mp4_path.endswith('.mp4'))
+            self.assertTrue(os.path.exists(mp4_path))
+            # Clean up
+            if os.path.exists(mp4_path):
+                os.remove(mp4_path)
+        
+        # Test with non-existent file
+        result = convert_flv_to_mp4('/nonexistent/file.flv')
+        self.assertIsNone(result)
+        
+        # Test with non-FLV file
+        result = convert_flv_to_mp4('/tmp/notflv.txt')
+        self.assertIsNone(result)
 
 if __name__ == '__main__':
     unittest.main()

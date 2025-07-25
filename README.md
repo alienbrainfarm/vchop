@@ -7,7 +7,7 @@ A standalone Python application for browsing directories, detecting video files,
 ### Core Functionality
 - **Windowed GUI**: PyQt5-based user-friendly interface for desktop environments
 - **Directory Browser**: Open and browse folders with automatic video file detection
-- **Video Detection**: Automatically find and display video files (.mp4, .avi, .mov) as thumbnails
+- **Video Detection**: Automatically find and display video files (.mp4, .avi, .mov, .flv) as thumbnails
 - **Scene Analysis**: Advanced scene detection using the `scenedetect` library with ContentDetector
 - **Scene Splitting**: Split detected scenes into individual MP4 files with FFmpeg integration
 - **Command-line Directory Launch**: Start with a directory parameter to immediately display videos
@@ -24,6 +24,7 @@ A standalone Python application for browsing directories, detecting video files,
 - **Thumbnail Generation**: Automatic thumbnail creation for all videos using OpenCV
 - **Multi-Selection**: Select multiple videos or scenes for batch operations
 - **Scene Chaining**: Combine selected scenes into a single output video
+- **FLV to MP4 Conversion**: Convert FLV files to MP4 format for better compatibility
 - **Export Control**: User-selectable output directories for split scenes
 
 ### Data Management
@@ -60,9 +61,10 @@ python src/main.py /path/to/video/directory
 ### Workflow
 1. **Browse Videos**: Select a directory to view video thumbnails
 2. **Analyze Scenes**: Double-click a video or use "Split by Scenes" to analyze
-3. **Split Scenes**: Choose output directory and split video into individual scenes
-4. **Manage Scenes**: Use the scene manager to reorder, delete, or export scenes
-5. **Export**: Create final videos from your arranged scenes
+3. **Convert FLV Files**: Select FLV files and use "Convert FLV to MP4" for better compatibility
+4. **Split Scenes**: Choose output directory and split video into individual scenes
+5. **Manage Scenes**: Use the scene manager to reorder, delete, or export scenes
+6. **Export**: Create final videos from your arranged scenes
 
 ## Requirements
 - Python 3.7+
