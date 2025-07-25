@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 from PIL import Image
 
-VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov']
+VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.flv']
 THUMBNAIL_SIZE = (200, 200)
 THUMBNAIL_DIR = '.vchop/thumbnails'
 RECENT_DIRS_PATH = Path.home() / '.vchop' / 'recent_dirs.json'
