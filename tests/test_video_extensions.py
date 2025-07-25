@@ -10,6 +10,7 @@ class TestVideoExtensions(unittest.TestCase):
         self.assertIn('.mp4', VIDEO_EXTENSIONS)
         self.assertIn('.avi', VIDEO_EXTENSIONS)
         self.assertIn('.mov', VIDEO_EXTENSIONS)
+        self.assertIn('.flv', VIDEO_EXTENSIONS)
 
 if __name__ == '__main__':
     unittest.main()
