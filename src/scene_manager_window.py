@@ -32,6 +32,12 @@ class SceneManagerWindow(QMainWindow):
         self.list_widget.setSelectionMode(QListWidget.SingleSelection)
         self.list_widget.setSpacing(10)
         layout.addWidget(self.list_widget)
+        
+        # Add export button
+        self.export_btn = QPushButton('Export Scenes to Video')
+        self.export_btn.clicked.connect(self.export_scenes)
+        layout.addWidget(self.export_btn)
+        
         self.populate_list()
         self.list_widget.installEventFilter(self)
         # No need to connect rowsMoved; handled by dropEvent

@@ -21,9 +21,21 @@ def create_thumbnail(filepath, thumb_path):
     if success:
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         img.thumbnail(THUMBNAIL_SIZE, Image.LANCZOS)
-        bg = Image.new('RGB', THUMBNAIL_SIZE, (0, 0, 0))
-        x = (THUMBNAIL_SIZE[0] - img.width) // 2
-        y = (THUMBNAIL_SIZE[1] - img.height) // 2
+        
+        # Create background with yellow border
+        border_width = 3
+        bg = Image.new('RGB', THUMBNAIL_SIZE, (255, 255, 0))  # Yellow background
+        
+        # Create inner area with black background
+        inner_size = (THUMBNAIL_SIZE[0] - 2 * border_width, THUMBNAIL_SIZE[1] - 2 * border_width)
+        inner_bg = Image.new('RGB', inner_size, (0, 0, 0))  # Black inner background
+        
+        # Paste inner background onto yellow border background
+        bg.paste(inner_bg, (border_width, border_width))
+        
+        # Center the thumbnail image within the inner area
+        x = border_width + (inner_size[0] - img.width) // 2
+        y = border_width + (inner_size[1] - img.height) // 2
         bg.paste(img, (x, y))
         bg.save(thumb_path)
         return True
@@ -46,8 +58,8 @@ def update_recent_dirs(dir_path, recent_dirs):
         json.dump(recent_dirs, f)
     return recent_dirs
 
-def convert_flv_to_mp4(flv_path, mp4_path=None):
-    """Convert FLV file to MP4 using FFmpeg.
+def convert_flv_to_mp4_opencv(flv_path, mp4_path=None):
+    """Convert FLV file to MP4 using OpenCV (no FFmpeg dependency).
     
     Args:
         flv_path: Path to the input FLV file
@@ -56,6 +68,80 @@ def convert_flv_to_mp4(flv_path, mp4_path=None):
     Returns:
         str: Path to the converted MP4 file on success, None on failure
     """
+    if not flv_path.lower().endswith('.flv'):
+        return None
+        
+    if not os.path.exists(flv_path):
+        return None
+        
+    if mp4_path is None:
+        mp4_path = flv_path.rsplit('.', 1)[0] + '.mp4'
+    
+    try:
+        # Use OpenCV to convert FLV to MP4
+        input_cap = cv2.VideoCapture(flv_path)
+        if not input_cap.isOpened():
+            print(f"OpenCV cannot open FLV file: {flv_path}")
+            return None
+            
+        # Get video properties
+        fps = input_cap.get(cv2.CAP_PROP_FPS)
+        width = int(input_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(input_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        if fps <= 0:
+            fps = 25.0  # Default fallback FPS
+        
+        # Define codec and create VideoWriter
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(mp4_path, fourcc, fps, (width, height))
+        
+        if not out.isOpened():
+            print(f"Cannot create output MP4 file: {mp4_path}")
+            input_cap.release()
+            return None
+        
+        # Convert frame by frame
+        frame_count = 0
+        while True:
+            ret, frame = input_cap.read()
+            if not ret:
+                break
+            out.write(frame)
+            frame_count += 1
+        
+        input_cap.release()
+        out.release()
+        
+        if frame_count > 0 and os.path.exists(mp4_path):
+            return mp4_path
+        else:
+            print(f"OpenCV conversion failed or no frames processed")
+            return None
+            
+    except Exception as e:
+        print(f"Error converting FLV to MP4 with OpenCV: {e}")
+        return None
+
+def convert_flv_to_mp4(flv_path, mp4_path=None, use_opencv=True):
+    """Convert FLV file to MP4 using OpenCV (preferred) or FFmpeg fallback.
+    
+    Args:
+        flv_path: Path to the input FLV file
+        mp4_path: Path to the output MP4 file (optional, defaults to same name with .mp4 extension)
+        use_opencv: Use OpenCV for conversion (True) or FFmpeg (False)
+    
+    Returns:
+        str: Path to the converted MP4 file on success, None on failure
+    """
+    if use_opencv:
+        # Try OpenCV first (no FFmpeg dependency)
+        result = convert_flv_to_mp4_opencv(flv_path, mp4_path)
+        if result:
+            return result
+        print("OpenCV conversion failed, falling back to FFmpeg...")
+    
+    # Fallback to FFmpeg if OpenCV fails or use_opencv=False
     if not flv_path.lower().endswith('.flv'):
         return None
         
