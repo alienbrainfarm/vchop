@@ -58,8 +58,12 @@ class VideoEditorWindow(QMainWindow):
             self.info_label.setText('No output directory selected.')
             return
         scene_files = []
-        import cv2
-        from PIL import Image
+        from video_utils import get_thumbnail_path, create_thumbnail, THUMBNAIL_DIR
+        
+        # Ensure thumbnail cache directory exists
+        thumb_dir = os.path.join(output_dir, THUMBNAIL_DIR)
+        os.makedirs(thumb_dir, exist_ok=True)
+        
         for i, (start, end) in enumerate(self.scene_list):
             out_path = os.path.join(output_dir, f'scene_{i+1:07d}.mp4')
             start_time = start.get_seconds()
@@ -67,20 +71,14 @@ class VideoEditorWindow(QMainWindow):
             cmd = f'ffmpeg -y -i "{self.video_path}" -ss {start_time} -t {duration} -c copy "{out_path}"'
             subprocess.call(cmd, shell=True)
             scene_files.append(out_path)
-            # Generate thumbnail for each scene if not present
-            thumb_path = out_path + '.png'
+            
+            # Generate thumbnail for each scene using unified function with blue border
+            thumb_path = get_thumbnail_path(out_path, thumb_dir)
             if not os.path.exists(thumb_path):
-                cap = cv2.VideoCapture(out_path)
-                success, frame = cap.read()
-                cap.release()
-                if success:
-                    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    img.thumbnail((200, 200), Image.LANCZOS)
-                    bg = Image.new('RGB', (200, 200), (0, 0, 0))
-                    x = (200 - img.width) // 2
-                    y = (200 - img.height) // 2
-                    bg.paste(img, (x, y))
-                    bg.save(thumb_path)
+                try:
+                    create_thumbnail(out_path, thumb_path, border_color=(0, 0, 255))  # Blue border for scene mode
+                except Exception:
+                    pass
         self.info_label.setText(f'Split into {len(self.scene_list)} scenes.')
         # Open scene manager window
         from scene_manager_window import SceneManagerWindow
