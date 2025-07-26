@@ -53,10 +53,23 @@ class SceneManagerWindow(QMainWindow):
         self.scene_files = new_order
 
     def populate_list(self):
+        from video_utils import get_thumbnail_path, create_thumbnail, THUMBNAIL_DIR
         self.list_widget.clear()
         for scene_file in self.scene_files:
             item = QListWidgetItem(os.path.basename(scene_file))
-            thumb_path = scene_file + '.png'
+            
+            # Use unified thumbnail cache location with blue border
+            scene_dir = os.path.dirname(scene_file)
+            thumb_dir = os.path.join(scene_dir, THUMBNAIL_DIR)
+            os.makedirs(thumb_dir, exist_ok=True)
+            thumb_path = get_thumbnail_path(scene_file, thumb_dir)
+            
+            if not os.path.exists(thumb_path):
+                try:
+                    create_thumbnail(scene_file, thumb_path, border_color=(0, 0, 255))  # Blue border for scene mode
+                except Exception:
+                    pass
+            
             if os.path.exists(thumb_path):
                 pixmap = QPixmap(thumb_path)
                 item.setIcon(QIcon(pixmap))
