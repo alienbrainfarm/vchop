@@ -14,7 +14,34 @@ MAX_RECENT = 5
 def is_video_file(filename):
     return any(filename.lower().endswith(ext) for ext in VIDEO_EXTENSIONS)
 
-def create_thumbnail(filepath, thumb_path):
+def get_thumbnail_path(video_path, cache_dir=None):
+    """Get the thumbnail path for a video file.
+    
+    Args:
+        video_path: Path to the video file
+        cache_dir: Optional cache directory. If None, uses standard cache location.
+    
+    Returns:
+        str: Path where thumbnail should be located
+    """
+    if cache_dir is None:
+        video_dir = os.path.dirname(video_path)
+        cache_dir = os.path.join(video_dir, THUMBNAIL_DIR)
+    
+    video_filename = os.path.basename(video_path)
+    return os.path.join(cache_dir, f'{video_filename}.png')
+
+def create_thumbnail(filepath, thumb_path, border_color=(255, 255, 0)):
+    """Create a thumbnail with configurable border color.
+    
+    Args:
+        filepath: Path to the video file
+        thumb_path: Path where thumbnail should be saved
+        border_color: RGB tuple for border color (default: yellow (255, 255, 0))
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
     cap = cv2.VideoCapture(filepath)
     success, frame = cap.read()
     cap.release()
@@ -22,15 +49,15 @@ def create_thumbnail(filepath, thumb_path):
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         img.thumbnail(THUMBNAIL_SIZE, Image.LANCZOS)
         
-        # Create background with yellow border
+        # Create background with configurable border color
         border_width = 3
-        bg = Image.new('RGB', THUMBNAIL_SIZE, (255, 255, 0))  # Yellow background
+        bg = Image.new('RGB', THUMBNAIL_SIZE, border_color)
         
         # Create inner area with black background
         inner_size = (THUMBNAIL_SIZE[0] - 2 * border_width, THUMBNAIL_SIZE[1] - 2 * border_width)
         inner_bg = Image.new('RGB', inner_size, (0, 0, 0))  # Black inner background
         
-        # Paste inner background onto yellow border background
+        # Paste inner background onto border background
         bg.paste(inner_bg, (border_width, border_width))
         
         # Center the thumbnail image within the inner area

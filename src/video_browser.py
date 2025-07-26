@@ -3,7 +3,7 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QSize, Qt
 import os
 import json
-from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, clean_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4, RECENT_DIRS_PATH
+from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, clean_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4, RECENT_DIRS_PATH, get_thumbnail_path
 from video_editor import VideoEditorWindow
 
 class VideoBrowser(QMainWindow):
@@ -49,7 +49,9 @@ class VideoBrowser(QMainWindow):
                 # Delete
                 elif event.key() == Qt.Key_Delete:
                     file_to_delete = self.current_scene_files[selected]
-                    thumb_to_delete = os.path.join(self.current_scene_dir, os.path.basename(file_to_delete) + '.png')
+                    # Use unified thumbnail cache location
+                    thumb_dir = os.path.join(self.current_scene_dir, THUMBNAIL_DIR)
+                    thumb_to_delete = get_thumbnail_path(file_to_delete, thumb_dir)
                     try:
                         if os.path.exists(file_to_delete):
                             os.remove(file_to_delete)
@@ -107,12 +109,24 @@ class VideoBrowser(QMainWindow):
 
     def show_scene_thumbnails(self, dir_path):
         # Show all video files in dir_path as thumbnails in current list_widget, in order from order file if present
-        from video_utils import is_video_file
+        from video_utils import is_video_file, get_thumbnail_path, create_thumbnail
         scene_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if is_video_file(f)]
         scene_files = self.load_scene_order(dir_path, scene_files)
+        
+        # Ensure thumbnail cache directory exists
+        thumb_dir = os.path.join(dir_path, THUMBNAIL_DIR)
+        os.makedirs(thumb_dir, exist_ok=True)
+        
         self.list_widget.clear()
         for f in scene_files:
-            thumb_path = os.path.join(dir_path, f'{os.path.basename(f)}.png')
+            # Use unified thumbnail cache directory and blue border for scene mode
+            thumb_path = get_thumbnail_path(f, thumb_dir)
+            if not os.path.exists(thumb_path):
+                try:
+                    create_thumbnail(f, thumb_path, border_color=(0, 0, 255))  # Blue border for scene mode
+                except Exception:
+                    pass
+            
             if os.path.exists(thumb_path):
                 pixmap = QPixmap(thumb_path)
             else:
@@ -125,6 +139,13 @@ class VideoBrowser(QMainWindow):
         self.current_scene_dir = dir_path
         self.current_scene_files = scene_files
         self.setup_scene_dragdrop()
+        
+        # Update window title to show scene editing mode
+        self.setWindowTitle('vchop - Scene Editor')
+        
+        # Enable export functionality when in scene mode
+        if hasattr(self, 'export_action'):
+            self.export_action.setEnabled(True)
 
     def __init__(self, start_dir=None):
         super().__init__()
@@ -231,10 +252,6 @@ class VideoBrowser(QMainWindow):
                               f'You can now reorder the videos by dragging them and then export to a single joined video.')
         
         self.show_scene_thumbnails(dir_path)
-        
-        # Enable export functionality when in scene mode
-        if hasattr(self, 'current_scene_files'):
-            self.setup_export_menu()
 
     def select_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select Directory')
@@ -249,6 +266,15 @@ class VideoBrowser(QMainWindow):
                               f'Please select a valid directory.')
             self.select_directory()
             return
+            
+        # Reset window title to browser mode and clear scene mode state
+        self.setWindowTitle('vchop - Video Browser')
+        if hasattr(self, 'current_scene_files'):
+            delattr(self, 'current_scene_files')
+        if hasattr(self, 'current_scene_dir'):
+            delattr(self, 'current_scene_dir')
+        if hasattr(self, 'export_action'):
+            self.export_action.setEnabled(False)
             
         self.list_widget.clear()
         thumb_dir = os.path.join(dir_path, THUMBNAIL_DIR)
@@ -339,11 +365,7 @@ class VideoBrowser(QMainWindow):
         else:
             QMessageBox.warning(self, 'Conversion Failed', 'Failed to convert any FLV files.')
 
-    def setup_export_menu(self):
-        """Enable export functionality when in scene mode."""
-        if hasattr(self, 'export_action'):
-            self.export_action.setEnabled(True)
-    
+
     def export_current_scenes(self):
         """Export currently displayed scenes to a single video file."""
         if not hasattr(self, 'current_scene_files') or not self.current_scene_files:
