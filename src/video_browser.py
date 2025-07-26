@@ -2,7 +2,8 @@ from PyQt5.QtWidgets import QMainWindow, QListWidget, QListWidgetItem, QAction, 
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QSize, Qt
 import os
-from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4
+import json
+from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, clean_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4, RECENT_DIRS_PATH
 from video_editor import VideoEditorWindow
 
 class VideoBrowser(QMainWindow):
@@ -141,10 +142,33 @@ class VideoBrowser(QMainWindow):
         self.recent_dirs = load_recent_dirs()
         self.create_menu()
         if start_dir:
-            self.open_directory(start_dir)
-            self.recent_dirs = update_recent_dirs(start_dir, self.recent_dirs)
-        elif self.recent_dirs:
-            self.open_directory(self.recent_dirs[0])
+            if os.path.exists(start_dir):
+                self.open_directory(start_dir)
+                self.recent_dirs = update_recent_dirs(start_dir, self.recent_dirs)
+            else:
+                QMessageBox.warning(self, 'Directory Not Found', 
+                                  f'The specified directory does not exist:\n{start_dir}\n\n'
+                                  f'Please select a valid directory.')
+                self.select_directory()
+        else:
+            # Clean up recent_dirs to remove non-existent directories
+            original_recent_dirs = self.recent_dirs
+            self.recent_dirs = clean_recent_dirs(self.recent_dirs)
+            # Save cleaned recent_dirs if any directories were removed
+            if len(self.recent_dirs) != len(original_recent_dirs):
+                RECENT_DIRS_PATH.parent.mkdir(parents=True, exist_ok=True)
+                with open(RECENT_DIRS_PATH, 'w') as f:
+                    json.dump(self.recent_dirs, f)
+            
+            if self.recent_dirs:
+                # Try to open the most recent valid directory
+                self.open_directory(self.recent_dirs[0])
+            else:
+                # No valid recent directories, prompt user to select one
+                QMessageBox.information(self, 'No Recent Directories', 
+                                      'No recent directories found or all previous directories no longer exist.\n\n'
+                                      'Please select a directory to browse.')
+                self.select_directory()
 
     def create_menu(self):
         menubar = self.menuBar()
@@ -219,6 +243,13 @@ class VideoBrowser(QMainWindow):
             self.recent_dirs = update_recent_dirs(dir_path, self.recent_dirs)
 
     def open_directory(self, dir_path):
+        if not os.path.exists(dir_path):
+            QMessageBox.warning(self, 'Directory Not Found', 
+                              f'The directory does not exist:\n{dir_path}\n\n'
+                              f'Please select a valid directory.')
+            self.select_directory()
+            return
+            
         self.list_widget.clear()
         thumb_dir = os.path.join(dir_path, THUMBNAIL_DIR)
         os.makedirs(thumb_dir, exist_ok=True)

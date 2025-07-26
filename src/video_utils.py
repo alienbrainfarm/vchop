@@ -50,6 +50,11 @@ def load_recent_dirs():
         pass
     return []
 
+def clean_recent_dirs(recent_dirs):
+    """Remove non-existent directories from recent_dirs list."""
+    cleaned_dirs = [d for d in recent_dirs if os.path.exists(d)]
+    return cleaned_dirs
+
 def update_recent_dirs(dir_path, recent_dirs):
     dirs = [dir_path] + [d for d in recent_dirs if d != dir_path]
     recent_dirs = dirs[:MAX_RECENT]
