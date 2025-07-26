@@ -167,22 +167,50 @@ class VideoBrowser(QMainWindow):
         convert_action = QAction('Convert FLV to MP4', self)
         convert_action.triggered.connect(self.convert_flv_to_mp4)
         actions_menu.addAction(convert_action)
+        
+        # Store reference to export action for dynamic enabling/disabling
+        self.export_action = QAction('Export Scenes to Video', self)
+        self.export_action.triggered.connect(self.export_current_scenes)
+        self.export_action.setEnabled(False)  # Initially disabled
+        actions_menu.addAction(self.export_action)
 
     def open_scene_manager_from_dir(self):
+        """Open scene manager to join videos from a directory."""
         # Default to subdirectory of current directory if possible
         base_dir = self.recent_dirs[0] if self.recent_dirs else os.getcwd()
         default_dir = os.path.join(base_dir, 'scenes')
         if not os.path.exists(default_dir):
             default_dir = base_dir
-        dir_path = QFileDialog.getExistingDirectory(self, 'Select Directory of Split Scenes', default_dir)
+        
+        # Show clear dialog message
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 
+            'Select Directory Containing Videos to Join Together', 
+            default_dir
+        )
         if not dir_path:
+            QMessageBox.information(self, 'No Directory Selected', 
+                                  'No directory was selected. Please select a directory containing videos to join.')
             return
+            
         from video_utils import is_video_file
         scene_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if is_video_file(f)]
+        
         if not scene_files:
-            QMessageBox.warning(self, 'No Scenes', 'No video files found in selected directory.')
+            QMessageBox.warning(self, 'No Videos Found', 
+                              f'No video files found in selected directory:\n{dir_path}\n\n'
+                              f'Please select a directory that contains video files to join.')
             return
+            
+        QMessageBox.information(self, 'Videos Found', 
+                              f'Found {len(scene_files)} video file(s) in:\n{dir_path}\n\n'
+                              f'You can now reorder the videos by dragging them and then export to a single joined video.')
+        
         self.show_scene_thumbnails(dir_path)
+        
+        # Enable export functionality when in scene mode
+        if hasattr(self, 'current_scene_files'):
+            self.setup_export_menu()
 
     def select_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select Directory')
@@ -279,3 +307,55 @@ class VideoBrowser(QMainWindow):
             self.open_directory(dir_path)
         else:
             QMessageBox.warning(self, 'Conversion Failed', 'Failed to convert any FLV files.')
+
+    def setup_export_menu(self):
+        """Enable export functionality when in scene mode."""
+        if hasattr(self, 'export_action'):
+            self.export_action.setEnabled(True)
+    
+    def export_current_scenes(self):
+        """Export currently displayed scenes to a single video file."""
+        if not hasattr(self, 'current_scene_files') or not self.current_scene_files:
+            QMessageBox.warning(self, 'No Scenes', 'No scenes available to export. Please open a directory with video files first.')
+            return
+            
+        output_file, _ = QFileDialog.getSaveFileName(
+            self, 
+            'Save Joined Video', 
+            '', 
+            'MP4 Files (*.mp4)'
+        )
+        if not output_file:
+            QMessageBox.information(self, 'Export Cancelled', 'Export was cancelled.')
+            return
+            
+        try:
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmpdir:
+                concat_file = os.path.join(tmpdir, 'concat.txt')
+                with open(concat_file, 'w') as f:
+                    for scene_file in self.current_scene_files:
+                        # Use absolute paths and escape single quotes
+                        safe_path = scene_file.replace("'", "'\"'\"'")
+                        f.write(f"file '{safe_path}'\n")
+                
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-f', 'concat',
+                    '-safe', '0',
+                    '-i', concat_file,
+                    '-c', 'copy',
+                    output_file
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0 and os.path.exists(output_file):
+                    QMessageBox.information(self, 'Export Complete', 
+                                          f'Successfully joined {len(self.current_scene_files)} videos to:\n{output_file}')
+                else:
+                    QMessageBox.warning(self, 'Export Failed', 
+                                      f'Failed to export video. Error:\n{result.stderr}')
+                    
+        except Exception as e:
+            QMessageBox.warning(self, 'Export Error', f'An error occurred during export:\n{str(e)}')
