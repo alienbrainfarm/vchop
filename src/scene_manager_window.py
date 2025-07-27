@@ -29,14 +29,19 @@ class SceneManagerWindow(QMainWindow):
         self.list_widget.setViewMode(QListWidget.IconMode)
         self.list_widget.setIconSize(QSize(200, 200))
         self.list_widget.setDragDropMode(QListWidget.InternalMove)
-        self.list_widget.setSelectionMode(QListWidget.SingleSelection)
+        self.list_widget.setSelectionMode(QListWidget.ExtendedSelection)
         self.list_widget.setSpacing(10)
         layout.addWidget(self.list_widget)
         
         # Add export button
-        self.export_btn = QPushButton('Export Scenes to Video')
+        self.export_btn = QPushButton('Export All Scenes to Video')
         self.export_btn.clicked.connect(self.export_scenes)
         layout.addWidget(self.export_btn)
+        
+        # Add export selected button
+        self.export_selected_btn = QPushButton('Export Selected Scenes to Video')
+        self.export_selected_btn.clicked.connect(self.export_selected_scenes)
+        layout.addWidget(self.export_selected_btn)
         
         self.populate_list()
         self.list_widget.installEventFilter(self)
@@ -110,6 +115,49 @@ class SceneManagerWindow(QMainWindow):
             try:
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 QMessageBox.information(self, 'Export Complete', f'Exported to {output_file}')
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, 'Export Failed', f'FFmpeg failed: {e.stderr}')
+            except FileNotFoundError:
+                QMessageBox.critical(self, 'Export Failed', 'FFmpeg not found. Please install FFmpeg.')
+
+    def export_selected_scenes(self):
+        """Export only the selected scenes to a video file."""
+        selected_items = self.list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, 'No Selection', 'Please select scenes to export.')
+            return
+            
+        # Get selected scene files in their current order
+        selected_files = []
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.isSelected():
+                name = item.text()
+                for f in self.scene_files:
+                    if os.path.basename(f) == name:
+                        selected_files.append(f)
+                        break
+        
+        if not selected_files:
+            QMessageBox.warning(self, 'No Scenes', 'No valid scenes found to export.')
+            return
+            
+        output_file, _ = QFileDialog.getSaveFileName(self, 'Save Selected Scenes Video', '', 'MP4 Files (*.mp4)')
+        if not output_file:
+            return
+            
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            concat_file = os.path.join(tmpdir, 'concat.txt')
+            with open(concat_file, 'w') as f:
+                for pf in selected_files:
+                    f.write(f"file '{pf}'\n")
+            cmd = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', concat_file, '-c', 'copy', output_file]
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                QMessageBox.information(self, 'Export Complete', 
+                                      f'Exported {len(selected_files)} selected scenes to:\n{output_file}')
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, 'Export Failed', f'FFmpeg failed: {e.stderr}')
             except FileNotFoundError:

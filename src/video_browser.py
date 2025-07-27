@@ -5,7 +5,6 @@ import os
 import subprocess
 import json
 from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, clean_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4, RECENT_DIRS_PATH, get_thumbnail_path
-from video_editor import VideoEditorWindow
 
 class VideoBrowser(QMainWindow):
     def keyPressEvent(self, event):
@@ -299,13 +298,34 @@ class VideoBrowser(QMainWindow):
                 self.list_widget.addItem(item)
 
     def open_video_editor(self, item):
+        # Double-clicking a video now opens scene manager for that specific video
         dir_path = self.recent_dirs[0] if self.recent_dirs else None
         if not dir_path:
             QMessageBox.warning(self, 'No Directory', 'No directory found for editing.')
             return
         video_path = os.path.join(dir_path, item.text())
-        self.editor = VideoEditorWindow(video_path, self)
-        self.editor.show()
+        
+        # Offer to split the video by scenes
+        reply = QMessageBox.question(self, 'Video Editor', 
+                                   f'Split "{item.text()}" by scenes?\n\n'
+                                   f'This will analyze the video for scene changes and split it into separate scene files.',
+                                   QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            # Use the same logic as split_by_scenes but with this specific video
+            output_dir = QFileDialog.getExistingDirectory(self, 'Select Output Directory for Scene Files')
+            if not output_dir:
+                return
+                
+            try:
+                scene_files = self._analyze_and_split_scenes(video_path, output_dir)
+                if scene_files:
+                    from scene_manager_window import SceneManagerWindow
+                    self.scene_manager = SceneManagerWindow(scene_files, self)
+                    self.scene_manager.show()
+                    self.scene_manager.raise_()
+                    self.scene_manager.activateWindow()
+            except Exception as e:
+                QMessageBox.critical(self, 'Scene Analysis Failed', f'Failed to analyze and split scenes:\n{str(e)}')
 
     def split_by_scenes(self):
         selected_items = self.list_widget.selectedItems()
@@ -318,8 +338,83 @@ class VideoBrowser(QMainWindow):
             QMessageBox.warning(self, 'No Directory', 'No directory found for splitting.')
             return
         video_path = os.path.join(dir_path, filename)
-        self.editor = VideoEditorWindow(video_path, self)
-        self.editor.show()
+        
+        # Ask user for output directory first
+        output_dir = QFileDialog.getExistingDirectory(self, 'Select Output Directory for Scene Files')
+        if not output_dir:
+            QMessageBox.information(self, 'Split Cancelled', 'Scene splitting was cancelled.')
+            return
+            
+        # Perform scene analysis and splitting directly
+        try:
+            scene_files = self._analyze_and_split_scenes(video_path, output_dir)
+            if scene_files:
+                # Open scene manager window with the split files
+                from scene_manager_window import SceneManagerWindow
+                self.scene_manager = SceneManagerWindow(scene_files, self)
+                self.scene_manager.show()
+                self.scene_manager.raise_()
+                self.scene_manager.activateWindow()
+        except Exception as e:
+            QMessageBox.critical(self, 'Scene Analysis Failed', f'Failed to analyze and split scenes:\n{str(e)}')
+    
+    def _analyze_and_split_scenes(self, video_path, output_dir):
+        """Analyze scenes and split video into scene files. Returns list of created scene files."""
+        try:
+            # Scene analysis using scenedetect
+            from scenedetect import open_video, SceneManager
+            from scenedetect.detectors import ContentDetector
+            
+            video = open_video(video_path)
+            scene_manager = SceneManager()
+            scene_manager.add_detector(ContentDetector())
+            scene_manager.detect_scenes(video)
+            scene_list = scene_manager.get_scene_list()
+            
+            if not scene_list:
+                QMessageBox.warning(self, 'No Scenes Found', 'No scene changes detected in the video.')
+                return []
+            
+            QMessageBox.information(self, 'Scenes Detected', f'Found {len(scene_list)} scenes. Splitting video...')
+            
+            # Split scenes into files
+            scene_files = []
+            from video_utils import get_thumbnail_path, create_thumbnail, THUMBNAIL_DIR
+            
+            # Ensure thumbnail cache directory exists
+            thumb_dir = os.path.join(output_dir, THUMBNAIL_DIR)
+            os.makedirs(thumb_dir, exist_ok=True)
+            
+            for i, (start, end) in enumerate(scene_list):
+                out_path = os.path.join(output_dir, f'scene_{i+1:07d}.mp4')
+                start_time = start.get_seconds()
+                duration = end.get_seconds() - start.get_seconds()
+                cmd = ['ffmpeg', '-y', '-i', video_path, '-ss', str(start_time), '-t', str(duration), '-c', 'copy', out_path]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    QMessageBox.critical(self, 'FFmpeg Error', f'Error splitting scene {i+1}:\n{result.stderr}')
+                    return []
+                    
+                scene_files.append(out_path)
+                
+                # Generate thumbnail for each scene using unified function with blue border
+                thumb_path = get_thumbnail_path(out_path, thumb_dir)
+                if not os.path.exists(thumb_path):
+                    try:
+                        create_thumbnail(out_path, thumb_path, border_color=(0, 0, 255))  # Blue border for scene mode
+                    except Exception:
+                        pass
+            
+            QMessageBox.information(self, 'Splitting Complete', f'Successfully split video into {len(scene_files)} scene files.')
+            return scene_files
+            
+        except ImportError:
+            QMessageBox.critical(self, 'Missing Dependency', 'Scene detection requires the "scenedetect" package to be installed.')
+            return []
+        except FileNotFoundError:
+            QMessageBox.critical(self, 'FFmpeg Not Found', 'FFmpeg is required for video splitting but was not found.')
+            return []
 
     def convert_flv_to_mp4(self):
         """Convert selected FLV files to MP4 format."""
