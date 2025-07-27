@@ -105,6 +105,12 @@ class SceneManagerWindow(QMainWindow):
             with open(concat_file, 'w') as f:
                 for pf in reordered:
                     f.write(f"file '{pf}'\n")
-            cmd = f'ffmpeg -y -f concat -safe 0 -i "{concat_file}" -c copy "{output_file}"'
-            subprocess.call(cmd, shell=True)
-        QMessageBox.information(self, 'Export Complete', f'Exported to {output_file}')
+            cmd = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', concat_file, '-c', 'copy', output_file]
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                QMessageBox.information(self, 'Export Complete', f'Exported to {output_file}')
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, 'Export Failed', f'FFmpeg failed: {e.stderr}')
+            except FileNotFoundError:
+                QMessageBox.critical(self, 'Export Failed', 'FFmpeg not found. Please install FFmpeg.')

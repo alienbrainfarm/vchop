@@ -38,7 +38,7 @@ class TestOpenCVConversion(unittest.TestCase):
         self.assertGreater(os.path.getsize(mp4_path), 0)
     
     def test_hybrid_conversion_opencv_preferred(self):
-        """Test that the hybrid function uses OpenCV by default."""
+        """Test that the hybrid function can use OpenCV when explicitly requested."""
         mp4_path = convert_flv_to_mp4(self.flv_path, use_opencv=True)
         
         self.assertIsNotNone(mp4_path)

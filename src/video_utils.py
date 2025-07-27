@@ -155,53 +155,52 @@ def convert_flv_to_mp4_opencv(flv_path, mp4_path=None):
         print(f"Error converting FLV to MP4 with OpenCV: {e}")
         return None
 
-def convert_flv_to_mp4(flv_path, mp4_path=None, use_opencv=True):
-    """Convert FLV file to MP4 using OpenCV (preferred) or FFmpeg fallback.
+def convert_flv_to_mp4(flv_path, mp4_path=None, use_opencv=False):
+    """Convert FLV file to MP4 using FFmpeg (preferred) or OpenCV fallback.
     
     Args:
         flv_path: Path to the input FLV file
         mp4_path: Path to the output MP4 file (optional, defaults to same name with .mp4 extension)
-        use_opencv: Use OpenCV for conversion (True) or FFmpeg (False)
+        use_opencv: Use OpenCV for conversion (True) or FFmpeg (False, default)
     
     Returns:
         str: Path to the converted MP4 file on success, None on failure
     """
-    if use_opencv:
-        # Try OpenCV first (no FFmpeg dependency)
-        result = convert_flv_to_mp4_opencv(flv_path, mp4_path)
-        if result:
-            return result
-        print("OpenCV conversion failed, falling back to FFmpeg...")
-    
-    # Fallback to FFmpeg if OpenCV fails or use_opencv=False
-    if not flv_path.lower().endswith('.flv'):
-        return None
-        
-    if not os.path.exists(flv_path):
-        return None
-        
-    if mp4_path is None:
-        mp4_path = flv_path.rsplit('.', 1)[0] + '.mp4'
-    
-    try:
-        # Use FFmpeg to convert FLV to MP4
-        cmd = [
-            'ffmpeg', '-y',  # -y to overwrite output file
-            '-i', flv_path,  # input file
-            '-c:v', 'libx264',  # video codec
-            '-c:a', 'aac',  # audio codec
-            '-preset', 'fast',  # encoding preset for speed
-            mp4_path  # output file
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode == 0 and os.path.exists(mp4_path):
-            return mp4_path
-        else:
-            print(f"FFmpeg conversion failed: {result.stderr}")
+    if not use_opencv:
+        # Try FFmpeg first (preferred method)
+        if not flv_path.lower().endswith('.flv'):
             return None
             
-    except Exception as e:
-        print(f"Error converting FLV to MP4: {e}")
-        return None
+        if not os.path.exists(flv_path):
+            return None
+            
+        if mp4_path is None:
+            mp4_path = flv_path.rsplit('.', 1)[0] + '.mp4'
+        
+        try:
+            # Use FFmpeg to convert FLV to MP4
+            cmd = [
+                'ffmpeg', '-y',  # -y to overwrite output file
+                '-i', flv_path,  # input file
+                '-c:v', 'libx264',  # video codec
+                '-c:a', 'aac',  # audio codec
+                '-preset', 'fast',  # encoding preset for speed
+                mp4_path  # output file
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0 and os.path.exists(mp4_path):
+                return mp4_path
+            else:
+                print(f"FFmpeg conversion failed: {result.stderr}")
+                print("Falling back to OpenCV...")
+        except FileNotFoundError:
+            print("FFmpeg not found, falling back to OpenCV...")
+        except Exception as e:
+            print(f"Error converting FLV to MP4 with FFmpeg: {e}")
+            print("Falling back to OpenCV...")
+    
+    # Fallback to OpenCV if FFmpeg fails or use_opencv=True
+    result = convert_flv_to_mp4_opencv(flv_path, mp4_path)
+    return result
