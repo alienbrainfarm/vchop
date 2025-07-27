@@ -158,7 +158,7 @@ class VideoBrowser(QMainWindow):
         self.list_widget.setSpacing(10)
         self.list_widget.setStyleSheet('background-color: black;')
         self.setCentralWidget(self.list_widget)
-        self.list_widget.itemDoubleClicked.connect(self.open_video_editor)
+        self.list_widget.itemDoubleClicked.connect(self.open_video_scene_splitter)
         self.list_widget.installEventFilter(self)
         self.recent_dirs = load_recent_dirs()
         self.create_menu()
@@ -297,7 +297,7 @@ class VideoBrowser(QMainWindow):
                 item.setSizeHint(QSize(THUMBNAIL_SIZE[0], THUMBNAIL_SIZE[1]))
                 self.list_widget.addItem(item)
 
-    def open_video_editor(self, item):
+    def open_video_scene_splitter(self, item):
         # Double-clicking a video now opens scene manager for that specific video
         dir_path = self.recent_dirs[0] if self.recent_dirs else None
         if not dir_path:
