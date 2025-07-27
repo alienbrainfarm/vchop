@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QMainWindow, QListWidget, QListWidgetItem, QAction, 
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QSize, Qt
 import os
+import subprocess
 import json
 from video_utils import VIDEO_EXTENSIONS, THUMBNAIL_SIZE, THUMBNAIL_DIR, load_recent_dirs, update_recent_dirs, clean_recent_dirs, is_video_file, create_thumbnail, convert_flv_to_mp4, RECENT_DIRS_PATH, get_thumbnail_path
 from video_editor import VideoEditorWindow
