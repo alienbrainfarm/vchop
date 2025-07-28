@@ -34,6 +34,16 @@ A standalone Python application for browsing directories, detecting video files,
 
 ## Installation
 
+### Option 1: Standalone Executable (Recommended for End Users)
+
+Download the pre-built executable from the releases page or build it yourself:
+
+1. **Download**: Get the latest release from GitHub releases
+2. **Windows Installer**: Run `vchop-x.x.x-setup.exe` for easy installation
+3. **Portable**: Extract and run the executable directly
+
+### Option 2: Run from Source (For Developers)
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/alienbrainfarm/vchop.git
@@ -46,6 +56,10 @@ pip install -r requirements.txt
 ```
 
 3. Ensure FFmpeg is installed on your system for video processing.
+
+### Option 3: Build Your Own Executable
+
+See [BUILD.md](BUILD.md) for detailed instructions on creating standalone executables and Windows installers.
 
 ## Usage
 
