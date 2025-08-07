@@ -57,8 +57,10 @@ class VideoBrowser(QMainWindow):
                             os.remove(file_to_delete)
                         if os.path.exists(thumb_to_delete):
                             os.remove(thumb_to_delete)
-                    except Exception:
-                        pass
+                    except (OSError, IOError) as e:
+                        print(f"Warning: Could not delete file: {e}")
+                    except Exception as e:
+                        print(f"Unexpected error during file deletion: {e}")
                     del self.current_scene_files[selected]
                     self.save_scene_order(self.current_scene_dir, self.current_scene_files)
                     self.show_scene_thumbnails(self.current_scene_dir)
@@ -124,8 +126,10 @@ class VideoBrowser(QMainWindow):
             if not os.path.exists(thumb_path):
                 try:
                     create_thumbnail(f, thumb_path, border_color=(0, 0, 255))  # Blue border for scene mode
-                except Exception:
-                    pass
+                except (OSError, IOError) as e:
+                    print(f"Warning: Could not create thumbnail for {f}: {e}")
+                except Exception as e:
+                    print(f"Unexpected error creating thumbnail for {f}: {e}")
             
             if os.path.exists(thumb_path):
                 pixmap = QPixmap(thumb_path)
