@@ -120,4 +120,24 @@ PYTHONPATH=src python src/main.py /path/to/videos
 See `LICENSE` for details.
 
 ## Documentation
-See the `docs/` directory for the Product Requirements Document (PRD) and additional documentation.
+
+See the `docs/` directory for detailed documentation:
+- [Product Requirements Document (PRD)](docs/PRD.md) - Complete feature specification
+- [Working Agreement](docs/WORKING_AGREEMENT.md) - Development guidelines and processes
+
+### Additional Resources
+- [Development Setup Guide](DEVELOPMENT.md) - Setting up development environment
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
+- [Build Instructions](BUILD.md) - Creating executables and installers
+
+## Contributing
+
+We welcome contributions! Please see [DEVELOPMENT.md](DEVELOPMENT.md) for setup instructions and development guidelines.
+
+### Quick Start for Contributors
+
+1. Fork the repository and clone it locally
+2. Set up development environment (see DEVELOPMENT.md)
+3. Install pre-commit hooks: `pip install pre-commit && pre-commit install`
+4. Make your changes and ensure tests pass
+5. Submit a pull request
