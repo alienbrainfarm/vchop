@@ -1,6 +1,7 @@
 import os
 import json
 from pathlib import Path
+from typing import List, Optional, Tuple
 import cv2
 from PIL import Image
 import subprocess
@@ -11,10 +12,18 @@ THUMBNAIL_DIR = '.vchop/thumbnails'
 RECENT_DIRS_PATH = Path.home() / '.vchop' / 'recent_dirs.json'
 MAX_RECENT = 5
 
-def is_video_file(filename):
+def is_video_file(filename: str) -> bool:
+    """Check if a file is a supported video file based on its extension.
+    
+    Args:
+        filename: Name of the file to check
+        
+    Returns:
+        True if the file has a supported video extension, False otherwise
+    """
     return any(filename.lower().endswith(ext) for ext in VIDEO_EXTENSIONS)
 
-def get_thumbnail_path(video_path, cache_dir=None):
+def get_thumbnail_path(video_path: str, cache_dir: Optional[str] = None) -> str:
     """Get the thumbnail path for a video file.
     
     Args:
@@ -22,7 +31,7 @@ def get_thumbnail_path(video_path, cache_dir=None):
         cache_dir: Optional cache directory. If None, uses standard cache location.
     
     Returns:
-        str: Path where thumbnail should be located
+        Path where thumbnail should be located
     """
     if cache_dir is None:
         video_dir = os.path.dirname(video_path)
@@ -69,42 +78,84 @@ def create_thumbnail(filepath, thumb_path, border_color=(255, 255, 0)):
     return False
 
 def load_recent_dirs():
+    """Load recent directories from the settings file.
+    
+    Returns:
+        list: List of recent directory paths, empty list if file doesn't exist or on error.
+    """
     try:
         if RECENT_DIRS_PATH.exists():
             with open(RECENT_DIRS_PATH, 'r') as f:
-                return json.load(f)
-    except Exception:
-        pass
+                dirs = json.load(f)
+                # Validate that it's a list of strings
+                if isinstance(dirs, list) and all(isinstance(d, str) for d in dirs):
+                    return dirs
+    except (json.JSONDecodeError, OSError, IOError) as e:
+        print(f"Warning: Could not load recent directories: {e}")
+    except Exception as e:
+        print(f"Unexpected error loading recent directories: {e}")
     return []
 
 def clean_recent_dirs(recent_dirs):
-    """Remove non-existent directories from recent_dirs list."""
+    """Remove non-existent directories from recent_dirs list.
+    
+    Args:
+        recent_dirs (list): List of directory paths to check
+        
+    Returns:
+        list: Filtered list containing only existing directories
+    """
     cleaned_dirs = [d for d in recent_dirs if os.path.exists(d)]
     return cleaned_dirs
 
 def update_recent_dirs(dir_path, recent_dirs):
+    """Update the recent directories list and save to file.
+    
+    Args:
+        dir_path (str): Directory path to add to recent list
+        recent_dirs (list): Current list of recent directories
+        
+    Returns:
+        list: Updated list of recent directories
+        
+    Raises:
+        OSError: If unable to create settings directory or write file
+    """
     dirs = [dir_path] + [d for d in recent_dirs if d != dir_path]
     recent_dirs = dirs[:MAX_RECENT]
-    RECENT_DIRS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(RECENT_DIRS_PATH, 'w') as f:
-        json.dump(recent_dirs, f)
+    
+    try:
+        RECENT_DIRS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(RECENT_DIRS_PATH, 'w') as f:
+            json.dump(recent_dirs, f)
+    except (OSError, IOError) as e:
+        print(f"Warning: Could not save recent directories: {e}")
+        # Still return the updated list even if we couldn't save it
+    
     return recent_dirs
 
 def convert_flv_to_mp4_opencv(flv_path, mp4_path=None):
     """Convert FLV file to MP4 using OpenCV (no FFmpeg dependency).
     
     Args:
-        flv_path: Path to the input FLV file
-        mp4_path: Path to the output MP4 file (optional, defaults to same name with .mp4 extension)
+        flv_path (str): Path to the input FLV file
+        mp4_path (str, optional): Path to the output MP4 file. 
+                                Defaults to same name with .mp4 extension.
     
     Returns:
-        str: Path to the converted MP4 file on success, None on failure
+        str or None: Path to the converted MP4 file on success, None on failure
+        
+    Raises:
+        ValueError: If flv_path is not a valid path or not an FLV file
     """
+    if not isinstance(flv_path, str) or not flv_path.strip():
+        raise ValueError("flv_path must be a non-empty string")
+        
     if not flv_path.lower().endswith('.flv'):
-        return None
+        raise ValueError("Input file must have .flv extension")
         
     if not os.path.exists(flv_path):
-        return None
+        raise ValueError(f"Input file does not exist: {flv_path}")
         
     if mp4_path is None:
         mp4_path = flv_path.rsplit('.', 1)[0] + '.mp4'
@@ -123,6 +174,12 @@ def convert_flv_to_mp4_opencv(flv_path, mp4_path=None):
         
         if fps <= 0:
             fps = 25.0  # Default fallback FPS
+        
+        # Validate video dimensions
+        if width <= 0 or height <= 0:
+            print(f"Invalid video dimensions: {width}x{height}")
+            input_cap.release()
+            return None
         
         # Define codec and create VideoWriter
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -151,8 +208,14 @@ def convert_flv_to_mp4_opencv(flv_path, mp4_path=None):
             print(f"OpenCV conversion failed or no frames processed")
             return None
             
+    except cv2.error as e:
+        print(f"OpenCV error converting FLV to MP4: {e}")
+        return None
+    except (OSError, IOError) as e:
+        print(f"File I/O error during conversion: {e}")
+        return None
     except Exception as e:
-        print(f"Error converting FLV to MP4 with OpenCV: {e}")
+        print(f"Unexpected error converting FLV to MP4 with OpenCV: {e}")
         return None
 
 def convert_flv_to_mp4(flv_path, mp4_path=None, use_opencv=False):

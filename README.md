@@ -50,12 +50,21 @@ git clone https://github.com/alienbrainfarm/vchop.git
 cd vchop
 ```
 
-2. Install dependencies:
+2. Create a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Ensure FFmpeg is installed on your system for video processing.
+4. Ensure FFmpeg is installed on your system for video processing:
+   - **Ubuntu/Debian**: `sudo apt install ffmpeg`
+   - **macOS**: `brew install ffmpeg`
+   - **Windows**: Download from https://ffmpeg.org/download.html
 
 ### Option 3: Build Your Own Executable
 
@@ -64,13 +73,32 @@ See [BUILD.md](BUILD.md) for detailed instructions on creating standalone execut
 ## Usage
 
 ### Basic Usage
+
 ```bash
 # Launch with directory browser
 python src/main.py
 
 # Launch with specific directory
 python src/main.py /path/to/video/directory
+
+# For development (with source in Python path)
+PYTHONPATH=src python src/main.py /path/to/videos
 ```
+
+### Example Workflows
+
+#### Basic Video Scene Analysis
+1. Launch vchop: `python src/main.py`
+2. Select a directory containing video files
+3. Double-click a video to analyze scenes
+4. Choose output directory for split scenes
+5. Review and manage scenes in the scene manager
+
+#### Batch FLV Conversion
+1. Navigate to directory with FLV files
+2. Select multiple FLV files (Ctrl+click)
+3. Right-click and choose "Convert FLV to MP4"
+4. Files will be converted and displayed as MP4 thumbnails
 
 ### Workflow
 1. **Browse Videos**: Select a directory to view video thumbnails
@@ -92,4 +120,24 @@ python src/main.py /path/to/video/directory
 See `LICENSE` for details.
 
 ## Documentation
-See the `docs/` directory for the Product Requirements Document (PRD) and additional documentation.
+
+See the `docs/` directory for detailed documentation:
+- [Product Requirements Document (PRD)](docs/PRD.md) - Complete feature specification
+- [Working Agreement](docs/WORKING_AGREEMENT.md) - Development guidelines and processes
+
+### Additional Resources
+- [Development Setup Guide](DEVELOPMENT.md) - Setting up development environment
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
+- [Build Instructions](BUILD.md) - Creating executables and installers
+
+## Contributing
+
+We welcome contributions! Please see [DEVELOPMENT.md](DEVELOPMENT.md) for setup instructions and development guidelines.
+
+### Quick Start for Contributors
+
+1. Fork the repository and clone it locally
+2. Set up development environment (see DEVELOPMENT.md)
+3. Install pre-commit hooks: `pip install pre-commit && pre-commit install`
+4. Make your changes and ensure tests pass
+5. Submit a pull request

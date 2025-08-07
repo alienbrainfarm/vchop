@@ -66,3 +66,9 @@ coverage.xml
 
 # VS Code
 .vscode/
+
+# Application logs and cache
+.vchop/
+
+# Development tools
+.pre-commit-cache/
